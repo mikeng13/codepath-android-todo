@@ -2,6 +2,7 @@ package com.codepath.simpletodo;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.app.FragmentManager;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -17,13 +18,15 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements EditTodoItemDialog.EditTodoItemDialogListener{
 
-    ArrayList<String> items;
-    ArrayAdapter<String> itemsAdapter;
+    ArrayList<TodoItem> todoItems;
+    TodoItemsAdapter itemsAdapter;
     ListView lvItems;
+    TodoItem selectedTodoItem;
 
     // This is used so that we can match the activity result to the correct activity result handler
     private final int REQUEST_CODE = 42;
@@ -34,9 +37,8 @@ public class MainActivity extends ActionBarActivity {
         setContentView(R.layout.activity_main);
 
         lvItems = (ListView)findViewById(R.id.lvItems);
-
-        readItems();
-        itemsAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items);
+        todoItems = (ArrayList<TodoItem>)TodoItem.listAll(TodoItem.class);
+        itemsAdapter = new TodoItemsAdapter(this, todoItems);
         lvItems.setAdapter(itemsAdapter);
         setupListViewListener();
     }
@@ -46,9 +48,9 @@ public class MainActivity extends ActionBarActivity {
                 new AdapterView.OnItemLongClickListener() {
                     @Override
                     public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                        items.remove(position);
+                        TodoItem itemToRemove = todoItems.remove(position);
+                        itemToRemove.delete();
                         itemsAdapter.notifyDataSetChanged();
-                        writeItems();
                         return true;
                     }
                 }
@@ -58,36 +60,17 @@ public class MainActivity extends ActionBarActivity {
                 new AdapterView.OnItemClickListener() {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                        String activityName = items.get(position);
-                        Intent editActivityIntent = new Intent(MainActivity.this, EditItemActivity.class);
-                        editActivityIntent.putExtra("activity_name", activityName);
-                        // remember the position so we know which one we are editing once we come
-                        // back to this activity
-                        editActivityIntent.putExtra("activity_position", position);
-                        startActivityForResult(editActivityIntent, REQUEST_CODE);
+                          selectedTodoItem = itemsAdapter.getItem(position);
+                          showEditItemDialog();
                     }
                 }
         );
     }
 
-    private void readItems() {
-        File filesDir = getFilesDir();
-        File todoFile = new File(filesDir, "todo.txt");
-        try {
-            items = new ArrayList<String>(FileUtils.readLines(todoFile));
-        } catch (IOException e) {
-            items = new ArrayList<String>();
-        }
-    }
-
-    private void writeItems() {
-        File filesDir = getFilesDir();
-        File todoFile = new File(filesDir, "todo.txt");
-        try {
-            FileUtils.writeLines(todoFile, items);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void showEditItemDialog() {
+        FragmentManager fm = getSupportFragmentManager();
+        EditTodoItemDialog editTodoItemDialog = EditTodoItemDialog.newInstance("Edit Item");
+        editTodoItemDialog.show(fm, "fragment_edit_item");
     }
 
     @Override
@@ -97,9 +80,8 @@ public class MainActivity extends ActionBarActivity {
             // Extract the new activity name value from result extras
             String newActivityName = data.getExtras().getString("activity_name");
             int activityPosition = data.getExtras().getInt("activity_position");
-            items.set(activityPosition, newActivityName);
+            //items.set(activityPosition, newActivityName);
             itemsAdapter.notifyDataSetChanged();
-            writeItems();
         }
     }
 
@@ -125,11 +107,19 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    public void onFinishEditDialog(String inputText) {
+        selectedTodoItem.name = inputText;
+        selectedTodoItem.save();
+        itemsAdapter.notifyDataSetChanged();
+    }
+
     public void onAddItem(View v) {
         EditText etNewItem = (EditText) findViewById(R.id.etNewItem);
         String itemText = etNewItem.getText().toString();
-        itemsAdapter.add(itemText);
-        writeItems();
+        TodoItem newTodoItem = new TodoItem(itemText);
+        itemsAdapter.add(newTodoItem);
+        newTodoItem.save();
 
         // reset the text field
         etNewItem.setText(R.string.enter_a_new_item);
