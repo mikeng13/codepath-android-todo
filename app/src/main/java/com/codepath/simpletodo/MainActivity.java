@@ -17,7 +17,9 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
@@ -108,8 +110,9 @@ public class MainActivity extends ActionBarActivity implements EditTodoItemDialo
     }
 
     @Override
-    public void onFinishEditDialog(String inputText) {
+    public void onFinishEditDialog(String inputText, String date) {
         selectedTodoItem.name = inputText;
+        selectedTodoItem.dueDate = date;
         selectedTodoItem.save();
         itemsAdapter.notifyDataSetChanged();
     }
@@ -117,7 +120,7 @@ public class MainActivity extends ActionBarActivity implements EditTodoItemDialo
     public void onAddItem(View v) {
         EditText etNewItem = (EditText) findViewById(R.id.etNewItem);
         String itemText = etNewItem.getText().toString();
-        TodoItem newTodoItem = new TodoItem(itemText);
+        TodoItem newTodoItem = new TodoItem(itemText, DateFormat.getDateInstance().format(new Date()));
         itemsAdapter.add(newTodoItem);
         newTodoItem.save();
 
